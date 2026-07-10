@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='UTF-8'>
+<title>Finance Dashboard PRO v2.5 REAL</title>
+
+<style>
+body{margin:0;background:#020617;color:white;font-family:Arial}
+.app{max-width:1300px;margin:auto;padding:30px}
+.top,.charts{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.top{grid-template-columns:repeat(4,1fr)}
+.card{background:#151b2d;border-radius:25px;padding:25px;margin:15px 0}
+.stat{text-align:center;font-size:24px}
+.green{color:#22c55e}.red{color:#ef4444}
+.row{display:flex;gap:10px;margin:10px}
+input,select,button{padding:12px;border-radius:10px;border:0}
+input{flex:1}
+button{background:#2563eb;color:white}
+canvas{display:block;margin:auto;cursor:pointer}
+#tip{position:fixed;display:none;background:#020617;border:1px solid #38bdf8;padding:12px;border-radius:12px}
+.legend div{background:#ffffff10;margin:5px;padding:8px;border-radius:10px}
+
+.footer{
+text-align:center;
+opacity:.45;
+font-size:14px;
+letter-spacing:1px;
+margin-top:40px;
+padding:20px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="tip"></div>
+
+<div class="app">
+
+<h1>Finance Dashboard PRO v2.5</h1>
+
+<select id="currency">
+<option>EUR</option>
+<option>USD</option>
+<option>GBP</option>
+<option>AED</option>
+</select>
+
+<p id="fx">Loading FX...</p>
+
+<div class="top">
+<div class="card stat green">Income<br><span id="income"></span></div>
+<div class="card stat red">Expenses<br><span id="expense"></span></div>
+<div class="card stat">Profit<br><span id="profit"></span></div>
+<div class="card stat">Margin<br><span id="margin"></span></div>
+</div>
+
+<div class="charts">
+
+<div class="card">
+<h2>Cashflow</h2>
+<canvas id="cash" width="350" height="350"></canvas>
+</div>
+
+<div class="card">
+<h2>Expense Breakdown</h2>
+<canvas id="expenseChart" width="350" height="350"></canvas>
+<div id="legend" class="legend"></div>
+</div>
+
+</div>
+
+<div class="card">
+<div id="inputs"></div>
+<button onclick="add()">+ Add</button>
+</div>
+
+<div class="footer">
+© 2026 Vexton Corp × Mont Cavian<br>
+All Rights Reserved
+</div>
+
+</div>
+
+
+<script>
+
+let fx={
+EUR:{s:"€",r:1},
+USD:{s:"$",r:1.17},
+GBP:{s:"£",r:.87},
+AED:{s:"AED ",r:4.3}
+};
+
+async function loadFX(){
+try{
+let r=await fetch("https://open.er-api.com/v6/latest/EUR");
+let j=await r.json();
+
+fx.USD.r=j.rates.USD;
+fx.GBP.r=j.rates.GBP;
+fx.AED.r=j.rates.AED;
+
+localStorage.setItem("fx",JSON.stringify(fx));
+document.getElementById("fx").innerHTML="🟢 Live FX";
+update();
+
+}catch(e){
+let old=localStorage.getItem("fx");
+if(old)fx=JSON.parse(old);
+document.getElementById("fx").innerHTML="🟡 Saved FX";
+update();
+}
+}
+
+
+let data=JSON.parse(localStorage.getItem("finance24"))||
+[
+{name:"Inkomsten",amount:1300000,type:"income"},
+{name:"ATM aankoop",amount:750000,type:"expense"},
+{name:"Personeel",amount:150000,type:"expense"},
+{name:"Software",amount:12000,type:"expense"}
+];
+
+let colors=["#38bdf8","#22c55e","#eab308","#a855f7","#ef4444"];
+let hover=[];
+
+function money(v){
+let c=document.getElementById("currency").value;
+return fx[c].s+Math.round(v*fx[c].r).toLocaleString();
+}
+
+
+function build(){
+
+let box=document.getElementById("inputs");
+box.innerHTML="";
+
+data.forEach((x,i)=>{
+
+let row=document.createElement("div");
+row.className="row";
+
+let n=document.createElement("input");
+n.value=x.name;
+n.oninput=()=>{x.name=n.value;update()};
+
+let a=document.createElement("input");
+a.type="number";
+a.value=x.amount;
+a.oninput=()=>{x.amount=a.value;update()};
+
+let s=document.createElement("select");
+s.innerHTML="<option>income</option><option>expense</option>";
+s.value=x.type;
+s.onchange=()=>{x.type=s.value;update()};
+
+let d=document.createElement("button");
+d.innerHTML="X";
+d.onclick=()=>{data.splice(i,1);build()};
+
+row.append(n,a,s,d);
+box.append(row);
+
+});
+
+update();
+
+}
+
+
+function update(){
+
+localStorage.setItem("finance24",JSON.stringify(data));
+
+let inc=data.filter(x=>x.type=="income").reduce((a,b)=>a+Number(b.amount),0);
+let exp=data.filter(x=>x.type=="expense").reduce((a,b)=>a+Number(b.amount),0);
+
+income.innerHTML=money(inc);
+expense.innerHTML=money(exp);
+profit.innerHTML=money(inc-exp);
+
+margin.innerHTML=inc?(((inc-exp)/inc)*100).toFixed(1)+"%":"0%";
+
+draw("cash",
+[
+{name:"Income",amount:inc},
+{name:"Expense",amount:exp}
+],
+["#22c55e","#ef4444"],
+false);
+
+
+draw("expenseChart",
+data.filter(x=>x.type=="expense"),
+colors,
+true);
+
+}
+
+
+function draw(id,arr,cols,h){
+
+let c=document.getElementById(id);
+let ctx=c.getContext("2d");
+
+ctx.clearRect(0,0,350,350);
+
+let total=arr.reduce((a,b)=>a+Number(b.amount),0);
+
+let start=-Math.PI/2;
+
+if(h)hover=[];
+
+let legend=document.getElementById("legend");
+if(h)legend.innerHTML="";
+
+
+arr.forEach((x,i)=>{
+
+let part=total?Number(x.amount)/total*Math.PI*2:0;
+
+ctx.beginPath();
+ctx.arc(175,175,140,start,start+part);
+ctx.arc(175,175,75,start+part,start,true);
+ctx.fillStyle=cols[i%cols.length];
+ctx.fill();
+
+if(h){
+
+hover.push({s:start,e:start+part,item:x,p:((x.amount/total)*100).toFixed(1)});
+
+legend.innerHTML+=`
+<div>
+<span style="color:${cols[i%cols.length]}">●</span>
+${x.name} - ${money(x.amount)}
+</div>`;
+
+}
+
+start+=part;
+
+});
+
+}
+
+
+
+expenseChart.onmousemove=e=>{
+
+let r=e.target.getBoundingClientRect();
+
+let x=e.clientX-r.left-175;
+let y=e.clientY-r.top-175;
+
+let a=Math.atan2(y,x);
+
+if(a<-Math.PI/2){
+a+=Math.PI*2;
+}
+
+let d=Math.sqrt(x*x+y*y);
+
+let f=hover.find(h=>
+a>=h.s &&
+a<=h.e &&
+d>75 &&
+d<140
+);
+
+if(f){
+
+tip.style.display="block";
+
+tip.style.left=e.clientX+15+"px";
+tip.style.top=e.clientY+15+"px";
+
+tip.innerHTML=
+f.item.name+
+"<br>"+
+money(f.item.amount)+
+"<br>"+
+f.p+"%";
+
+}else{
+
+tip.style.display="none";
+
+}
+
+};
+
+
+expenseChart.onmouseleave=()=>{
+
+tip.style.display="none";
+
+};
+
+
+function add(){
+data.push({name:"Nieuw",amount:0,type:"expense"});
+build();
+}
+
+currency.onchange=update;
+
+build();
+loadFX();
+
+</script>
+
+</body>
+</html>
