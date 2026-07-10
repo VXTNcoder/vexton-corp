@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Vexton Structure Builder v2.4</title>
+
+<style>
+body{background:#020617;color:white;font-family:Arial}
+.app{max-width:1200px;margin:auto;padding:40px}
+.card{background:#151b2d;border-radius:25px;padding:25px;margin:20px}
+input,select,button{padding:12px;border-radius:10px;margin:5px}
+button{background:#2563eb;color:white;border:0;cursor:pointer}
+.delete{background:#dc2626}
+.edit{background:#16a34a}
+.stats{display:flex;gap:20px}
+.stats div{flex:1;text-align:center}
+.node{background:#243047;border-radius:20px;padding:20px;margin:15px}
+.child{margin-left:50px;border-left:3px solid #38bdf8;padding-left:20px}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<h1>Vextoncorp x mont cavian Structure Builder v2.4</h1>
+
+<div class="stats">
+<div class="card">Entities<br><span id="e">0</span></div>
+<div class="card">Assets<br><span id="a">$0</span></div>
+<div class="card">Revenue<br><span id="r">$0</span></div>
+</div>
+
+
+<div class="card">
+
+<h2>Add / Edit Entity</h2>
+
+<input id="n" placeholder="Company">
+<input id="c" placeholder="Country">
+<input id="t" placeholder="Type">
+
+<select id="p">
+<option value="">No Parent Company</option>
+</select>
+
+<input id="o" placeholder="Ownership">
+<input id="as" type="number" placeholder="Assets">
+<input id="re" type="number" placeholder="Revenue">
+
+<button id="saveBtn" onclick="save()">+ Add</button>
+
+</div>
+
+
+<div class="card">
+
+<h2>Structure</h2>
+
+<div id="tree"></div>
+
+</div>
+
+</div>
+
+
+<script>
+
+let data=JSON.parse(localStorage.getItem("v24"))||[];
+
+let editing=null;
+
+
+function save(){
+
+let obj={
+name:n.value,
+country:c.value,
+type:t.value,
+parent:p.value,
+own:o.value,
+asset:Number(as.value),
+rev:Number(re.value)
+};
+
+
+if(editing===null){
+
+data.push(obj);
+
+}else{
+
+let old=data[editing].name;
+
+data[editing]=obj;
+
+
+// update children parent names
+
+data.forEach(x=>{
+
+if(x.parent===old){
+
+x.parent=obj.name;
+
+}
+
+});
+
+
+editing=null;
+
+saveBtn.innerHTML="+ Add";
+
+}
+
+
+localStorage.setItem("v24",JSON.stringify(data));
+
+clear();
+
+render();
+
+}
+
+
+function clear(){
+
+n.value="";
+c.value="";
+t.value="";
+o.value="";
+as.value="";
+re.value="";
+
+}
+
+
+function edit(i){
+
+let x=data[i];
+
+n.value=x.name;
+c.value=x.country;
+t.value=x.type;
+p.value=x.parent;
+o.value=x.own;
+as.value=x.asset;
+re.value=x.rev;
+
+editing=i;
+
+saveBtn.innerHTML="Save Changes";
+
+}
+
+
+function del(i){
+
+let removed=data[i].name;
+
+data.splice(i,1);
+
+
+// children become independent
+
+data.forEach(x=>{
+
+if(x.parent===removed){
+
+x.parent="";
+
+}
+
+});
+
+
+localStorage.setItem("v24",JSON.stringify(data));
+
+render();
+
+}
+
+
+function render(){
+
+tree.innerHTML="";
+
+p.innerHTML='<option value="">No Parent Company</option>';
+
+data.forEach(x=>{
+
+p.innerHTML+=`<option>${x.name}</option>`;
+
+});
+
+
+e.innerHTML=data.length;
+
+a.innerHTML="$"+data.reduce((s,x)=>s+x.asset,0).toLocaleString();
+
+r.innerHTML="$"+data.reduce((s,x)=>s+x.rev,0).toLocaleString();
+
+
+data.filter(x=>x.parent==="").forEach(x=>draw(x,tree));
+
+}
+
+
+function draw(x,parentDiv){
+
+let box=document.createElement("div");
+
+box.className="node";
+
+let i=data.indexOf(x);
+
+box.innerHTML=`
+
+<h2>${x.name}</h2>
+
+${x.country}<br>
+${x.type}<br>
+
+Ownership: ${x.own}%<br>
+
+Assets: $${x.asset}<br>
+
+Revenue: $${x.rev}
+
+<br><br>
+
+<button class="edit" onclick="edit(${i})">Edit</button>
+
+<button class="delete" onclick="del(${i})">Delete</button>
+
+`;
+
+parentDiv.appendChild(box);
+
+
+data.filter(y=>y.parent===x.name).forEach(k=>{
+
+let child=document.createElement("div");
+
+child.className="child";
+
+parentDiv.appendChild(child);
+
+draw(k,child);
+
+});
+
+}
+
+
+render();
+
+</script>
+
+</body>
+</html>
