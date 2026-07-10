@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Vexton Real Estate Analyzer v1.3</title>
+
+<style>
+body{margin:0;background:#020617;color:white;font-family:Arial}
+.app{max-width:1200px;margin:auto;padding:30px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:#151b2d;border-radius:25px;padding:25px;margin:15px 0}
+input{width:100%;padding:12px;border-radius:12px;border:0;margin:6px 0}
+.stat{text-align:center;font-size:23px;margin:15px}
+.green{color:#22c55e}.blue{color:#38bdf8}.yellow{color:#eab308}
+.footer{text-align:center;opacity:.45;margin-top:40px}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<h1>Vexton Real Estate Analyzer v1.3</h1>
+
+<div class="grid">
+
+<div class="card">
+
+<h2>Property</h2>
+
+Purchase Price
+<input id="price" type="number" value="2500000">
+
+Monthly Rent
+<input id="monthlyRent" type="number" value="7500">
+
+Annual Rent (auto)
+<input id="annualRent" readonly>
+
+Annual Expenses
+<input id="expenses" type="number" value="30000">
+
+
+<h2>Financing</h2>
+
+Down Payment
+<input id="down" type="number" value="1500000">
+
+Interest Rate %
+<input id="interest" type="number" value="6">
+
+
+<h2>Target Profit</h2>
+
+Wanted Profit / Year
+<input id="target" type="number" value="100000">
+
+</div>
+
+
+<div class="card">
+
+<h2>Analysis</h2>
+
+<div class="stat green">
+NOI<br><span id="noi"></span>
+</div>
+
+<div class="stat blue">
+Cap Rate<br><span id="cap"></span>
+</div>
+
+<div class="stat">
+Loan Amount<br><span id="loan"></span>
+</div>
+
+<div class="stat">
+LTV<br><span id="ltv"></span>
+</div>
+
+<div class="stat green">
+Cashflow Year<br><span id="cashYear"></span>
+</div>
+
+<div class="stat green">
+Cashflow Month<br><span id="cashMonth"></span>
+</div>
+
+<div class="stat blue">
+Cash-on-Cash Return<br>
+<span id="coc"></span>
+</div>
+
+<div class="stat blue">
+DSCR<br>
+<span id="dscr"></span>
+</div>
+
+<hr>
+
+<div class="stat yellow">
+Break Even Rent / Month<br>
+<span id="breakMonth"></span>
+</div>
+
+<div class="stat yellow">
+Break Even Rent / Year<br>
+<span id="breakYear"></span>
+</div>
+
+<div class="stat green">
+Rent Needed For Target / Year<br>
+<span id="targetRent"></span>
+</div>
+
+<div class="stat green">
+Rent Needed For Target / Month<br>
+<span id="targetRentMonth"></span>
+</div>
+
+</div>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>📊 Real Estate Metrics Guide</h2>
+
+<table style="width:100%;text-align:center;border-spacing:15px">
+
+<tr>
+<th>CAP RATE</th>
+<th>CASH-ON-CASH</th>
+<th>DSCR</th>
+<th>LTV</th>
+<th>NOI</th>
+</tr>
+
+<tr>
+<td>🔴 0-3%<br>Poor</td>
+<td>🔴 0-4%<br>Poor</td>
+<td>🔴 &lt;1.00x<br>Risky</td>
+<td>🟢 0-50%<br>Conservative</td>
+<td>🔴 Negative<br>Bad</td>
+</tr>
+
+<tr>
+<td>🟡 3-5%<br>Moderate</td>
+<td>🟡 4-8%<br>Moderate</td>
+<td>🟡 1-1.25x<br>Acceptable</td>
+<td>🟡 50-70%<br>Normal</td>
+<td>🟡 Stable<br>OK</td>
+</tr>
+
+<tr>
+<td>🟢 5-8%<br>Good</td>
+<td>🟢 8-12%<br>Good</td>
+<td>🟢 1.25-2x<br>Good</td>
+<td>🟠 70-80%<br>Aggressive</td>
+<td>🟢 Growing<br>Good</td>
+</tr>
+
+<tr>
+<td>🔵 8%+<br>Strong</td>
+<td>🔵 12%+<br>Strong</td>
+<td>🔵 2x+<br>Strong</td>
+<td>🔴 80%+<br>High Risk</td>
+<td>🔵 Strong<br>Excellent</td>
+</tr>
+
+</table>
+
+</div>
+
+<div class="footer">
+© 2026 Vexton Corp × Mont Cavian<br>
+All Rights Reserved
+</div>
+
+</div>
+
+
+<script>
+
+document.querySelectorAll("input").forEach(x=>x.oninput=calc);
+
+function money(v){
+return "$"+Math.round(v).toLocaleString();
+}
+
+
+function calc(){
+
+let p=+price.value;
+let rent=+monthlyRent.value*12;
+
+annualRent.value=rent;
+
+let exp=+expenses.value;
+
+let equity=+down.value;
+
+let debt=p-equity;
+
+let interestCost=debt*(+interest.value/100);
+
+let n=rent-exp;
+
+let cf=n-interestCost;
+
+
+noi.innerHTML=money(n);
+
+cap.innerHTML=((n/p)*100).toFixed(2)+"%";
+
+loan.innerHTML=money(debt);
+
+ltv.innerHTML=((debt/p)*100).toFixed(1)+"%";
+
+cashYear.innerHTML=money(cf);
+
+cashMonth.innerHTML=money(cf/12);
+
+coc.innerHTML =
+((cf/equity)*100).toFixed(2)+"%";
+
+dscr.innerHTML =
+interestCost ? (n/interestCost).toFixed(2)+"x" : "N/A";
+
+
+let breakeven=interestCost+exp;
+
+breakYear.innerHTML=money(breakeven);
+
+breakMonth.innerHTML=money(breakeven/12);
+
+
+let targetTotal = breakeven + Number(target.value);
+
+targetRent.innerHTML =
+money(targetTotal)+"/yr";
+
+targetRentMonth.innerHTML =
+money(targetTotal/12)+"/month";
+
+}
+
+calc();
+
+</script>
+
+</body>
+</html>
